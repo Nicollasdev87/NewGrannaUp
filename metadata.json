@@ -1,0 +1,8 @@
+
+{
+  "name": "Granaup - Financial Management",
+  "description": "A modern financial dashboard for tracking expenses, setting savings goals, and managing personal investments with smart AI insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
