@@ -7,31 +7,20 @@ interface AddContributionModalProps {
     goalTitle: string;
 }
 
-const formatCurrency = (value: string | number): string => {
-    if (!value) return '';
-    const numericString = String(value).replace(/[^0-9,.]/g, '').replace(',', '.');
-    const parsed = parseFloat(numericString);
-    if (isNaN(parsed)) return '';
-    return parsed.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
+const formatCurrencyInput = (val: string) => {
+    const numbers = val.replace(/\D/g, '');
+    if (!numbers) return '';
+    const amount = parseFloat(numbers) / 100;
+    return new Intl.NumberFormat('pt-BR', {
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
+        maximumFractionDigits: 2
+    }).format(amount);
 };
 
-const parseCurrencyToNumber = (value: string): number => {
-    if (!value) return 0;
-    const clean = value.replace(/[^0-9,.-]/g, '');
-    const lastComma = clean.lastIndexOf(',');
-    const lastDot = clean.lastIndexOf('.');
-    let normalized = clean;
-    if (lastComma > lastDot) {
-        normalized = clean.replace(/\./g, '').replace(',', '.');
-    } else if (lastDot > lastComma) {
-        normalized = clean.replace(/,/g, '');
-    }
-    return parseFloat(normalized) || 0;
+const parseCurrencyValue = (val: string) => {
+    if (!val) return 0;
+    const numbers = val.replace(/\D/g, '');
+    return parseFloat(numbers) / 100;
 };
 
 const AddContributionModal: React.FC<AddContributionModalProps> = ({ isOpen, onClose, onConfirm, goalTitle }) => {
@@ -40,14 +29,9 @@ const AddContributionModal: React.FC<AddContributionModalProps> = ({ isOpen, onC
 
     if (!isOpen) return null;
 
-    const handleValueBlur = () => {
-        const formatted = formatCurrency(amount);
-        setAmount(formatted);
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const numericAmount = parseCurrencyToNumber(amount);
+        const numericAmount = parseCurrencyValue(amount);
         if (numericAmount > 0) {
             onConfirm(numericAmount, date);
             setAmount('');
@@ -72,15 +56,15 @@ const AddContributionModal: React.FC<AddContributionModalProps> = ({ isOpen, onC
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Valor do Aporte</label>
                         <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium pt-0.5">R$</span>
                             <input
                                 type="text"
                                 required
                                 autoFocus
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg font-bold"
-                                placeholder="R$ 0,00"
+                                className="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg font-bold"
+                                placeholder="0,00"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                onBlur={handleValueBlur}
+                                onChange={(e) => setAmount(formatCurrencyInput(e.target.value))}
                             />
                         </div>
                     </div>

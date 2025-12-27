@@ -11,22 +11,28 @@ interface GoalsProps {
 }
 
 
-const getCategoryStyles = (category: string) => {
-  switch (category) {
-    case 'Viagem':
-      return { color: 'text-sky-600', bg: 'bg-sky-600' };
-    case 'Veículo':
-      return { color: 'text-rose-600', bg: 'bg-rose-600' };
-    case 'Casa':
-      return { color: 'text-emerald-600', bg: 'bg-emerald-600' };
-    case 'Educação':
-      return { color: 'text-violet-600', bg: 'bg-violet-600' };
-    case 'Segurança':
-      return { color: 'text-slate-600', bg: 'bg-slate-600' };
-    case 'Lazer':
-      return { color: 'text-amber-600', bg: 'bg-amber-600' };
-    default:
-      return { color: 'text-primary', bg: 'bg-primary' };
+const getGoalStyles = (goal: Goal) => {
+  const colors: Record<string, { color: string; bg: string }> = {
+    blue: { color: 'text-blue-600', bg: 'bg-blue-600' },
+    emerald: { color: 'text-emerald-600', bg: 'bg-emerald-600' },
+    rose: { color: 'text-rose-600', bg: 'bg-rose-600' },
+    violet: { color: 'text-violet-600', bg: 'bg-violet-600' },
+    amber: { color: 'text-amber-600', bg: 'bg-amber-600' },
+    pink: { color: 'text-pink-600', bg: 'bg-pink-600' },
+    cyan: { color: 'text-cyan-600', bg: 'bg-cyan-600' },
+  };
+
+  if (goal.color && colors[goal.color]) return colors[goal.color];
+
+  // Fallback to category styles compatibility
+  switch (goal.category) {
+    case 'Viagem': return { color: 'text-sky-600', bg: 'bg-sky-600' };
+    case 'Veículo': return { color: 'text-rose-600', bg: 'bg-rose-600' };
+    case 'Casa': return { color: 'text-emerald-600', bg: 'bg-emerald-600' };
+    case 'Educação': return { color: 'text-violet-600', bg: 'bg-violet-600' };
+    case 'Segurança': return { color: 'text-slate-600', bg: 'bg-slate-600' };
+    case 'Lazer': return { color: 'text-amber-600', bg: 'bg-amber-600' };
+    default: return { color: 'text-primary', bg: 'bg-primary' };
   }
 };
 
@@ -41,10 +47,10 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
 
   const renderGoalCard = (goal: Goal, isCompleted: boolean = false) => {
     const progress = Math.min((goal.currentValue / goal.targetValue) * 100, 100);
-    const style = getCategoryStyles(goal.category);
+    const style = getGoalStyles(goal);
 
     return (
-      <div key={goal.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all p-6 flex flex-col gap-4 group relative overflow-hidden">
+      <div key={goal.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all p-4 flex flex-col gap-2 group relative overflow-hidden">
         {goal.backgroundImage && (
           <>
             <div
@@ -85,12 +91,21 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
               <div className={`w-8 h-1 rounded-full ${style.bg} opacity-80`}></div>
             </div>
 
-            <div className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wide ${isCompleted ? 'bg-emerald-100 text-emerald-700' :
-              goal.status === 'Essencial' ? 'bg-emerald-100 text-emerald-700' :
-                goal.status === 'Falta Pouco' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-blue-100 text-blue-700'
-              }`}>
-              {isCompleted ? 'Concluída' : goal.status}
+            <div className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wide ${(() => {
+              if (isCompleted) return 'bg-emerald-100 text-emerald-700';
+              if (progress === 0) return 'bg-slate-100 text-slate-600';
+              if (progress < 25) return 'bg-blue-100 text-blue-700';
+              if (progress < 50) return 'bg-indigo-100 text-indigo-700';
+              if (progress < 75) return 'bg-amber-100 text-amber-700';
+              return 'bg-orange-100 text-orange-700';
+            })()}`}>
+              {isCompleted ? 'Concluída' : (() => {
+                if (progress === 0) return 'Iniciado';
+                if (progress < 25) return 'Começando';
+                if (progress < 50) return 'Em Andamento';
+                if (progress < 75) return 'Na Metade';
+                return 'Quase Lá';
+              })()}
             </div>
           </div>
           <div>
@@ -124,8 +139,8 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
           </div>
           <div className="flex flex-col gap-2 mt-2">
             <div className="flex justify-between items-end">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">R$ {goal.currentValue.toLocaleString()}</span>
-              <span className="text-sm text-slate-500 font-medium whitespace-nowrap">de R$ {goal.targetValue.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">R$ {goal.currentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-sm text-slate-500 font-medium whitespace-nowrap">de R$ {goal.targetValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
               <div
@@ -142,7 +157,7 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onViewHistory(goal)}
-                className="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded-full transition-colors text-slate-400 hover:text-primary"
+                className="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded-xl transition-colors text-slate-400 hover:text-primary"
                 title="Ver Histórico"
               >
                 <span className="material-symbols-outlined">history</span>
@@ -150,7 +165,7 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
               {!isCompleted && (
                 <button
                   onClick={() => onAddContribution(goal)}
-                  className="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded-full transition-colors text-slate-400 hover:text-primary"
+                  className="hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded-xl transition-colors text-slate-400 hover:text-primary"
                   title="Novo Aporte"
                 >
                   <span className="material-symbols-outlined">add</span>
@@ -187,7 +202,7 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
           </div>
           <div>
             <p className="text-slate-500 text-sm font-medium mb-1">Total Economizado</p>
-            <h3 className="text-2xl font-bold">R$ {goals.reduce((acc, curr) => acc + curr.currentValue, 0).toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold">R$ {goals.reduce((acc, curr) => acc + curr.currentValue, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
           </div>
           {/* Mocked stat remains for now */}
           <div className="flex items-center gap-1 text-green-600 text-sm font-medium bg-green-50 w-fit px-2 py-0.5 rounded-full">
@@ -238,7 +253,7 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
 
           <button
             onClick={onOpenAddGoalModal}
-            className="bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all group min-h-[280px]"
+            className="bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-all group min-h-[220px]"
           >
             <div className="w-16 h-16 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-3xl text-primary">add</span>

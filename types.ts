@@ -43,6 +43,7 @@ export interface Goal {
   currentValue: number;
   targetValue: number;
   category: string;
+  color?: string;
   icon: string;
   backgroundImage?: string;
   status: 'Iniciado' | 'Em Andamento' | 'Falta Pouco' | 'Essencial';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Category, CreditCard, Transaction } from '../types';
 import { supabase } from '../services/supabase';
+import { DEFAULT_CATEGORIES } from '../constants';
 
 interface SettingsProps {
     userId: string;
@@ -57,6 +58,15 @@ const Settings: React.FC<SettingsProps> = ({ userId, showToast, useCustomCategor
         if (!catName) {
             showToast('Nome é obrigatório', 'error');
             return;
+        }
+
+        // Check limits for custom categories
+        if (!editingItem) {
+            const currentCount = categories.filter(c => c.type === catType).length;
+            if (currentCount >= 10) {
+                showToast(`Limite de 10 categorias de ${catType === 'income' ? 'receita' : 'despesa'} atingido.`, 'error');
+                return;
+            }
         }
 
         const payload = {
@@ -167,7 +177,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, showToast, useCustomCategor
     };
 
     const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#64748b'];
-    const ICONS = ['shopping_bag', 'home', 'directions_car', 'restaurant', 'movie', 'flight', 'school', 'medication', 'pets', 'savings', 'paid', 'work', 'gym', 'sports_esports'];
+    const ICONS = ['shopping_bag', 'home', 'directions_car', 'restaurant', 'movie', 'flight', 'school', 'medication', 'pets', 'savings', 'paid', 'work', 'fitness_center', 'sports_esports'];
 
     const getBankLogo = (cardName: string) => {
         const name = cardName.toLowerCase();
@@ -229,177 +239,210 @@ const Settings: React.FC<SettingsProps> = ({ userId, showToast, useCustomCategor
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-slate-200 dark:border-slate-700">
-                <button
-                    onClick={() => { setActiveTab('categories'); resetForm(); }}
-                    className={`pb-3 text-sm font-medium transition-all ${activeTab === 'categories' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >
-                    Categorias
-                </button>
-                <button
-                    onClick={() => { setActiveTab('cards'); resetForm(); }}
-                    className={`pb-3 text-sm font-medium transition-all ${activeTab === 'cards' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >
-                    Meus Cartões
-                </button>
-            </div>
-
-            {/* Content */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 min-h-[400px]">
+            {/* Tabs & Actions */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-700 pb-0">
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => { setActiveTab('categories'); resetForm(); }}
+                        className={`pb-3 text-sm font-medium transition-all ${activeTab === 'categories' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                    >
+                        Categorias
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('cards'); resetForm(); }}
+                        className={`pb-3 text-sm font-medium transition-all ${activeTab === 'cards' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                    >
+                        Meus Cartões
+                    </button>
+                </div>
 
                 {!isAdding && (
-                    <div className="mb-6 flex justify-end">
+                    <div className="flex items-center gap-4 mb-2 md:mb-0">
+                        {activeTab === 'categories' && useCustomCategories && (
+                            <div className="flex gap-3 text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <span className={categories.filter(c => c.type === 'income').length >= 10 ? 'text-red-500' : ''}>
+                                    Receitas: {categories.filter(c => c.type === 'income').length}/10
+                                </span>
+                                <span className="w-px h-4 bg-slate-200 dark:bg-slate-700"></span>
+                                <span className={categories.filter(c => c.type === 'expense').length >= 10 ? 'text-red-500' : ''}>
+                                    Despesas: {categories.filter(c => c.type === 'expense').length}/10
+                                </span>
+                            </div>
+                        )}
                         <button
                             onClick={() => setIsAdding(true)}
-                            className={`flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-bold ${(!useCustomCategories && activeTab === 'categories') ? 'hidden' : ''}`}
+                            className={`flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-bold shadow-md shadow-primary/20 ${(!useCustomCategories && activeTab === 'categories') ? 'hidden' : ''}`}
                         >
                             <span className="material-symbols-outlined !text-lg">add</span>
                             {activeTab === 'categories' ? 'Nova Categoria' : 'Novo Cartão'}
                         </button>
                     </div>
                 )}
+            </div>
 
-                {/* Adding/Editing Form */}
+            {/* Content */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 min-h-[400px]">
+
+
+
+                {/* Adding/Editing Modal */}
                 {isAdding && (
-                    <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl mb-6 animate-in slide-in-from-top-4">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-                                {editingItem ? 'Editar' : 'Adicionar'} {activeTab === 'categories' ? 'Categoria' : 'Cartão'}
-                            </h3>
-                            <button onClick={resetForm} className="text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined">close</span></button>
-                        </div>
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl overflow-y-auto max-h-[90vh] scale-100 animate-in zoom-in-95 duration-200 custom-scrollbar">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                                    {editingItem ? 'Editar' : 'Adicionar'} {activeTab === 'categories' ? 'Categoria' : 'Cartão'}
+                                </h3>
+                                <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {activeTab === 'categories' ? (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome</label>
-                                        <input
-                                            type="text"
-                                            value={catName}
-                                            onChange={e => setCatName(e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 dark:text-white"
-                                            placeholder="Ex: Alimentação"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo</label>
-                                        <select
-                                            value={catType}
-                                            onChange={e => setCatType(e.target.value as any)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 text-slate-700 dark:text-white"
-                                        >
-                                            <option value="expense">Despesa</option>
-                                            <option value="income">Receita</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cor</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {COLORS.map(c => (
-                                                <button
-                                                    key={c}
-                                                    onClick={() => setCatColor(c)}
-                                                    className={`w-8 h-8 rounded-full transition-all ${catColor === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-110'}`}
-                                                    style={{ backgroundColor: c }}
-                                                />
-                                            ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {activeTab === 'categories' ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome</label>
+                                            <input
+                                                type="text"
+                                                value={catName}
+                                                onChange={e => setCatName(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white"
+                                                placeholder="Ex: Alimentação"
+                                                autoFocus
+                                            />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Ícone</label>
-                                        <div className="flex flex-wrap gap-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
-                                            {ICONS.map(icon => (
-                                                <button
-                                                    key={icon}
-                                                    onClick={() => setCatIcon(icon)}
-                                                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${catIcon === icon ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                                                >
-                                                    <span className="material-symbols-outlined">{icon}</span>
-                                                </button>
-                                            ))}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 flex justify-between">
+                                                <span>Tipo</span>
+                                                {(() => {
+                                                    const count = categories.filter(c => c.type === catType).length;
+                                                    const isFull = count >= 10;
+                                                    return (
+                                                        <span className={`text-xs font-bold ${isFull ? 'text-red-500' : 'text-slate-400'}`}>
+                                                            {count}/10
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </label>
+                                            <select
+                                                value={catType}
+                                                onChange={e => setCatType(e.target.value as any)}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+                                            >
+                                                <option value="expense">Despesa</option>
+                                                <option value="income">Receita</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome do Cartão</label>
-                                        <input
-                                            type="text"
-                                            value={cardName}
-                                            onChange={e => setCardName(e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 dark:text-white"
-                                            placeholder="Ex: Nubank Principal"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bandeira</label>
-                                        <select
-                                            value={cardBrand}
-                                            onChange={e => setCardBrand(e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 text-slate-700 dark:text-white"
-                                        >
-                                            <option value="Mastercard">Mastercard</option>
-                                            <option value="Visa">Visa</option>
-                                            <option value="Elo">Elo</option>
-                                            <option value="Amex">American Express</option>
-                                            <option value="Hipercard">Hipercard</option>
-                                            <option value="Outro">Outro</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Dia de Vencimento</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="31"
-                                            value={cardClosingDay}
-                                            onChange={e => setCardClosingDay(Number(e.target.value))}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 dark:text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Limite (R$)</label>
-                                        <input
-                                            type="number"
-                                            value={cardLimit}
-                                            onChange={e => setCardLimit(e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 dark:text-white"
-                                            placeholder="0,00"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cor do Cartão</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {COLORS.map(c => (
-                                                <button
-                                                    key={c}
-                                                    onClick={() => setCardColor(c)}
-                                                    className={`w-8 h-8 rounded-full transition-all ${cardColor === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-110'}`}
-                                                    style={{ backgroundColor: c }}
-                                                />
-                                            ))}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cor</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {COLORS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setCatColor(c)}
+                                                        className={`w-8 h-8 rounded-full transition-all ${catColor === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Ícone</label>
+                                            <div className="flex flex-wrap gap-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
+                                                {ICONS.map(icon => (
+                                                    <button
+                                                        key={icon}
+                                                        onClick={() => setCatIcon(icon)}
+                                                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${catIcon === icon ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                                                    >
+                                                        <span className="material-symbols-outlined">{icon}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome do Cartão</label>
+                                            <input
+                                                type="text"
+                                                value={cardName}
+                                                onChange={e => setCardName(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white"
+                                                placeholder="Ex: Nubank Principal"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bandeira</label>
+                                            <select
+                                                value={cardBrand}
+                                                onChange={e => setCardBrand(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+                                            >
+                                                <option value="Mastercard">Mastercard</option>
+                                                <option value="Visa">Visa</option>
+                                                <option value="Elo">Elo</option>
+                                                <option value="Amex">American Express</option>
+                                                <option value="Hipercard">Hipercard</option>
+                                                <option value="Outro">Outro</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Dia de Vencimento</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="31"
+                                                value={cardClosingDay}
+                                                onChange={e => setCardClosingDay(Number(e.target.value))}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Limite (R$)</label>
+                                            <input
+                                                type="number"
+                                                value={cardLimit}
+                                                onChange={e => setCardLimit(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white"
+                                                placeholder="0,00"
+                                            />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cor do Cartão</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {COLORS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setCardColor(c)}
+                                                        className={`w-8 h-8 rounded-full transition-all ${cardColor === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
 
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                onClick={resetForm}
-                                className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={activeTab === 'categories' ? handleSaveCategory : handleSaveCard}
-                                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-bold shadow-md hover:shadow-lg"
-                            >
-                                Salvar {activeTab === 'categories' ? 'Categoria' : 'Cartão'}
-                            </button>
+                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                <button
+                                    onClick={resetForm}
+                                    className="px-4 py-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-bold transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={activeTab === 'categories' ? handleSaveCategory : handleSaveCard}
+                                    disabled={activeTab === 'categories' && !editingItem && categories.filter(c => c.type === catType).length >= 10}
+                                    className={`px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition shadow-lg shadow-primary/30 font-bold ${activeTab === 'categories' && !editingItem && categories.filter(c => c.type === catType).length >= 10 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Salvar {activeTab === 'categories' ? 'Categoria' : 'Cartão'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -411,15 +454,24 @@ const Settings: React.FC<SettingsProps> = ({ userId, showToast, useCustomCategor
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {activeTab === 'categories' ? (
                             !useCustomCategories ? (
-                                <div className="col-span-full bg-slate-50 dark:bg-slate-900 rounded-xl p-8 text-center">
-                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                                        <span className="material-symbols-outlined text-3xl">category</span>
+                                DEFAULT_CATEGORIES.map(cat => (
+                                    <div key={cat.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl flex items-center justify-between group border border-transparent hover:border-slate-200 dark:hover:border-slate-700 opacity-80 hover:opacity-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: cat.color }}>
+                                                <span className="material-symbols-outlined">{cat.icon}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 dark:text-white">{cat.name}</h4>
+                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${cat.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {cat.type === 'income' ? 'Receita' : 'Despesa'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                                            Padrão
+                                        </div>
                                     </div>
-                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Usando Categorias Padrão</h3>
-                                    <p className="text-slate-500 max-w-md mx-auto">
-                                        Você está usando as categorias padrão do sistema. Mude para "Personalizadas" acima se quiser adicionar, editar ou remover categorias.
-                                    </p>
-                                </div>
+                                ))
                             ) : (
                                 categories.length > 0 ? categories.map(cat => (
                                     <div key={cat.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl flex items-center justify-between group hover:shadow-md transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700">

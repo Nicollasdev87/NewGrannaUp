@@ -319,6 +319,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                 <input
                                     type="text"
                                     required
+                                    maxLength={30}
                                     className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                                     placeholder={type === 'income' ? 'Ex: Salário' : 'Ex: Supermercado'}
                                     value={description}
@@ -363,7 +364,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                         onChange={(e) => setCategory(e.target.value)}
                                     >
                                         <option value="" disabled>Selecione</option>
-                                        {categories.filter(c => c.type === type).map(cat => (
+                                        {categories.filter(c => c.type === type).sort((a, b) => a.name.localeCompare(b.name)).map(cat => (
                                             <option key={cat.id} value={cat.name}>{cat.name}</option>
                                         ))}
                                         {categories.filter(c => c.type === type).length === 0 && (
@@ -372,7 +373,9 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Meio Pagamento</label>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                                        {type === 'income' ? 'Meio Recebimento' : 'Meio Pagamento'}
+                                    </label>
                                     <select
                                         required
                                         className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -385,10 +388,11 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                         }}
                                     >
                                         <option value="" disabled>Selecione</option>
-                                        <option value="Pix">Pix</option>
                                         <option value="Cartão de Crédito">Cartão de Crédito</option>
                                         <option value="Cartão de Débito">Cartão de Débito</option>
                                         <option value="Dinheiro">Dinheiro</option>
+                                        <option value="Pix">Pix</option>
+                                        <option value="TED">TED</option>
                                     </select>
                                 </div>
                             </div>
@@ -404,7 +408,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                     >
                                         <option value="" disabled>Selecione o cartão</option>
                                         {creditCards.length > 0 ? (
-                                            creditCards.map(card => (
+                                            [...creditCards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
                                                 <option key={card.id} value={card.name}>{card.name}</option>
                                             ))
                                         ) : (
@@ -428,7 +432,10 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setIsInstallment(true)}
+                                                onClick={() => {
+                                                    setIsInstallment(true);
+                                                    if (installmentCount < 2) setInstallmentCount(2);
+                                                }}
                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isInstallment ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500'}`}
                                             >
                                                 Parcelado

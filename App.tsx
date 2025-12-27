@@ -133,7 +133,12 @@ const App: React.FC = () => {
         value: Number(tx.value),
         icon: tx.icon,
         paymentMethod: tx.payment_method,
-        installments: tx.installments
+        installments: tx.installments,
+        cardBrand: tx.card_brand,
+        installmentNumber: tx.installment_number,
+        totalInstallments: tx.total_installments,
+        isBillPayment: tx.is_bill_payment,
+        billCardBrand: tx.bill_card_brand
       })));
     }
 
@@ -151,6 +156,7 @@ const App: React.FC = () => {
         currentValue: Number(g.current_value),
         targetValue: Number(g.target_value),
         category: g.category,
+        color: g.color,
         icon: g.icon,
         backgroundImage: g.background_image || undefined,
         status: g.status as any,
@@ -499,6 +505,36 @@ const App: React.FC = () => {
 
         setTransactions([...newTxs, ...transactions]);
         showToast(totalInstallments > 1 ? `${totalInstallments} parcelas criadas com sucesso!` : 'Transação criada com sucesso!');
+
+        // Check for Dividendos logic
+        if (newTransaction.type === 'income' && newTransaction.category === 'Dividendos') {
+          const matchingInvestment = investments.find(inv =>
+            (inv.ticker && newTransaction.description.toUpperCase().includes(inv.ticker.toUpperCase())) ||
+            (inv.name && newTransaction.description.toUpperCase().includes(inv.name.toUpperCase()))
+          );
+
+          const { data: divData } = await supabase
+            .from('dividends')
+            .insert([{
+              user_id: session.user.id,
+              investment_id: matchingInvestment?.id || null,
+              asset_name: matchingInvestment ? (matchingInvestment.ticker || matchingInvestment.name) : newTransaction.description,
+              value: newTransaction.value,
+              date: newTransaction.date
+            }])
+            .select();
+
+          if (divData && divData[0]) {
+            setDividends(prev => [{
+              id: divData[0].id,
+              investmentId: divData[0].investment_id,
+              assetName: divData[0].asset_name,
+              value: Number(divData[0].value),
+              date: divData[0].date
+            }, ...prev]);
+            showToast('Dividendo registrado em Investimentos!', 'success');
+          }
+        }
       }
     }
     setIsModalOpen(false);
@@ -553,7 +589,7 @@ const App: React.FC = () => {
   };
 
 
-  const handleSaveGoal = async (goalData: Omit<Goal, 'id' | 'currentValue' | 'status'>) => {
+  const handleSaveGoal = async (goalData: Omit<Goal, 'id' | 'status'>) => {
     if (!session?.user.id) return;
 
     if (editingGoal) {
@@ -566,7 +602,8 @@ const App: React.FC = () => {
           category: goalData.category,
           icon: goalData.icon,
           background_image: goalData.backgroundImage,
-          monthly_contribution: goalData.monthlyContribution
+          monthly_contribution: goalData.monthlyContribution,
+          current_value: goalData.currentValue // Allow updating current value directly if needed
         })
         .eq('id', editingGoal.id);
 
@@ -575,7 +612,7 @@ const App: React.FC = () => {
         return;
       }
 
-      setGoals(goals.map(g => g.id === editingGoal.id ? { ...goalData, id: editingGoal.id, currentValue: editingGoal.currentValue, status: editingGoal.status } : g));
+      setGoals(goals.map(g => g.id === editingGoal.id ? { ...goalData, id: editingGoal.id, status: editingGoal.status } : g));
       setEditingGoal(null);
       showToast('Meta atualizada com sucesso!');
     } else {
@@ -590,7 +627,8 @@ const App: React.FC = () => {
           icon: goalData.icon,
           background_image: goalData.backgroundImage,
           status: 'Iniciado',
-          monthly_contribution: goalData.monthlyContribution
+          monthly_contribution: goalData.monthlyContribution,
+          current_value: goalData.currentValue || 0
         }])
         .select();
 
@@ -603,7 +641,7 @@ const App: React.FC = () => {
         const goalWithId: Goal = {
           ...goalData,
           id: data[0].id,
-          currentValue: 0,
+          currentValue: goalData.currentValue || 0,
           status: 'Iniciado',
         };
         setGoals([...goals, goalWithId]);
@@ -1022,6 +1060,7 @@ const App: React.FC = () => {
         return <Transactions
           transactions={transactions}
           categories={useCustomCategories ? categories : DEFAULT_CATEGORIES}
+          creditCards={creditCards}
           onOpenAddTransactionModal={() => { setEditingTransaction(null); setIsModalOpen(true); }}
           onEditTransaction={handleEditTransaction}
           onDeleteTransaction={handleDeleteTransaction}
@@ -1222,7 +1261,7 @@ const App: React.FC = () => {
       <GoalContributionsModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
-        goal={selectedGoalForContribution}
+        goal={selectedGoalForHistory}
         onUpdate={fetchData}
         showConfirm={showConfirm}
         showToast={showToast}
