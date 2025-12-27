@@ -4,8 +4,19 @@ export enum AppScreen {
   TRANSACTIONS = 'TRANSACTIONS',
   GOALS = 'GOALS',
   INVESTMENTS = 'INVESTMENTS',
+  CALENDAR = 'CALENDAR',
   PROFILE = 'PROFILE',
   SETTINGS = 'SETTINGS'
+}
+
+export interface RecurringTransaction {
+  id: string;
+  daysOfMonth: number[];
+  description: string;
+  category: string;
+  type: 'income' | 'expense' | 'investment';
+  value: number;
+  icon: string;
 }
 
 export interface Transaction {
@@ -13,11 +24,16 @@ export interface Transaction {
   date: string;
   description: string;
   category: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   value: number;
   icon: string;
   paymentMethod?: string;
-  installments?: string;
+  installments?: string; // Legacy or Display purposes
+  cardBrand?: string;
+  installmentNumber?: number;
+  totalInstallments?: number;
+  isBillPayment?: boolean;
+  billCardBrand?: string;
 }
 
 export interface Goal {
@@ -71,4 +87,23 @@ export interface UserProfile {
   birthDate: string;
   occupation: string;
   avatar: string;
+}
+
+export interface Category {
+  id: string;
+  userId?: string;
+  name: string;
+  color: string;
+  icon: string;
+  type: 'income' | 'expense';
+}
+
+export interface CreditCard {
+  id: string;
+  userId?: string;
+  name: string;
+  brand: string;
+  closingDay: number;
+  limit: number;
+  color: string;
 }

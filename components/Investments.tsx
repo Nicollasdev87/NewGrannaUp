@@ -14,6 +14,26 @@ interface InvestmentsProps {
     onAddDividend: (dividend: Omit<Dividend, 'id'>) => void;
 }
 
+// Helper Functions
+const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const formatCompactNumber = (number: number) => {
+    return Intl.NumberFormat('pt-BR', {
+        notation: "compact",
+        maximumFractionDigits: 1
+    }).format(number);
+};
+
+const formatDate = (dateStr: string) => {
+    if (!dateStr || !dateStr.includes('-')) return dateStr;
+    const [year, month, day] = dateStr.split('-');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    return `${day} ${monthNames[dateObj.getMonth()]} / ${year.slice(-2)}`;
+};
+
 const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAddInvestment, onEditInvestment, onDeleteInvestment, onAddDividend }) => {
     // Get unique asset classes, sort alphabetically
     const assetClasses = Array.from(new Set(investments.map(inv => inv.category))).sort();
@@ -49,9 +69,6 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
 
     // Populate chart data from props
     last6Months.forEach(m => {
-        // For evolution, we use current totalValue as a crude estimation if no history is available
-        // but for a better representation, we'll only show the current month value for now
-        // or just let it stay 0 for past months to trigger the 3-month logic if new
         if (m.month === new Date().getMonth() && m.year === new Date().getFullYear()) {
             m.evolution = totalValue;
         }
@@ -90,6 +107,20 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
     })).size;
     const averageMonthlyDividends = uniqueMonths > 0 ? totalDividendsAllTime / uniqueMonths : 0;
 
+    // FIXED COLORS PALETTE
+    const CHART_COLORS = ['#8c2bee', '#ec4899', '#3b82f6', '#06b6d4', '#f59e0b', '#7c3aed'];
+
+    // Semantic color function matching Dashboard's "Carteira Atual" chart
+    const getSemanticColor = (categoryName: string, fallbackIndex: number) => {
+        const n = categoryName.toLowerCase();
+        if (n.includes('cripto') || n.includes('bitcoin')) return '#f59e0b'; // Amber-500
+        if (n.includes('ação') || n.includes('acoes') || n.includes('ações')) return '#22c55e'; // Green-500
+        if (n.includes('fundo') || n.includes('fii')) return '#3b82f6'; // Blue-500
+        if (n.includes('renda fixa') || n.includes('tesouro') || n.includes('cdb')) return '#06b6d4'; // Cyan-500
+        if (n.includes('etf')) return '#f97316'; // Orange-500
+        if (n.includes('exterior') || n.includes('bdr')) return '#8b5cf6'; // Violet-500
+        return CHART_COLORS[fallbackIndex % CHART_COLORS.length];
+    };
 
     // Group investments by category for the Pie Chart
     const categoryData = investments.reduce((acc, curr) => {
@@ -97,10 +128,16 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
         if (existing) {
             existing.value += curr.totalValue;
         } else {
-            acc.push({ name: curr.category, value: curr.totalValue, color: curr.color });
+            acc.push({ name: curr.category, value: curr.totalValue, color: '#000' }); // Placeholder color
         }
         return acc;
-    }, [] as { name: string; value: number; color: string }[]);
+    }, [] as { name: string; value: number; color: string }[])
+        .sort((a, b) => b.value - a.value)
+        .map((item, index) => ({
+            ...item,
+            percent: (item.value / totalValue) * 100,
+            color: getSemanticColor(item.name, index)
+        }));
 
     // Filter investments by selected tab
     const filteredInvestments = activeTab === 'Todos'
@@ -124,9 +161,7 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
 
     // Handle deleting investment
     const handleDeleteClick = (id: string, name: string) => {
-        if (confirm(`Tem certeza que deseja excluir "${name}"?`)) {
-            onDeleteInvestment(id);
-        }
+        onDeleteInvestment(id);
     };
 
     // Handle saving investment
@@ -147,9 +182,7 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
     };
 
 
-    const formatCurrency = (value: number) => {
-        return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    };
+
 
     const CustomTooltip = ({ active, payload, label, colorKey, indicatorColor }: any) => {
         if (active && payload && payload.length) {
@@ -169,9 +202,12 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
             const data = payload[0].payload;
             return (
                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: data.color || payload[0].color }}></span>
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: data.color }}></span>
                     <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{data.name}:</span>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">{formatCurrency(data.value)}</span>
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{formatCurrency(data.value)}</span>
+                        <span className="text-xs text-slate-500 font-medium">({data.percent.toFixed(1)}%)</span>
+                    </div>
                 </div>
             );
         }
@@ -299,7 +335,7 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="mt-24 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-primary uppercase tracking-wider mb-2">INVESTIMENTOS</h2>
                     <p className="text-slate-500 dark:text-slate-400">Gerencie sua carteira de ativos e acompanhe seus rendimentos.</p>
@@ -411,6 +447,7 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
                                             innerRadius={70}
                                             outerRadius={95}
                                             paddingAngle={5}
+                                            minAngle={5}
                                             dataKey="value"
                                         >
                                             {categoryData.map((entry, index) => (
@@ -421,8 +458,8 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                                    <p className="text-xs text-slate-500">Total</p>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">100%</p>
+                                    <p className="text-xs text-slate-500 font-medium uppercase">Total</p>
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCompactNumber(totalValue)}</p>
                                 </div>
                             </>
                         ) : <EmptyState message="SEM ALOCAÇÃO" icon="pie_chart" />}
@@ -454,14 +491,14 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
                                 <BarChart data={chartData} barSize={30}>
                                     <defs>
                                         <linearGradient id="colorDividends" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.8} />
-                                            <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.4} />
+                                            <stop offset="0%" stopColor="#8c2bee" stopOpacity={0.8} />
+                                            <stop offset="100%" stopColor="#8c2bee" stopOpacity={0.4} />
                                         </linearGradient>
                                     </defs>
                                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                                     <YAxis hide />
-                                    <Tooltip content={<CustomTooltip indicatorColor="#14b8a6" />} />
-                                    <Bar dataKey="Proventos" fill="url(#colorDividends)" radius={[8, 8, 0, 0]} />
+                                    <Tooltip content={<CustomTooltip indicatorColor="#8c2bee" />} cursor={{ fill: 'rgba(140, 43, 238, 0.1)' }} />
+                                    <Bar dataKey="Proventos" fill="#8c2bee" radius={[8, 8, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : <EmptyState message="SEM PROVENTOS PARA O GRÁFICO" icon="bar_chart" />}
@@ -485,7 +522,7 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, dividends, onAdd
                             <div key={dividend.id} className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 last:border-0">
                                 <div className="flex-1">
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">{dividend.assetName}</p>
-                                    <p className="text-xs text-slate-500">{new Date(dividend.date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                    <p className="text-xs text-slate-500">{formatDate(dividend.date)}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm font-bold text-green-600">R$ {dividend.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>

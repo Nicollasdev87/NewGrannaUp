@@ -166,7 +166,7 @@ const Goals: React.FC<GoalsProps> = ({ goals, onOpenAddGoalModal, onEdit, onDele
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-24">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6">
         <div>
           <h2 className="text-2xl font-bold text-primary uppercase tracking-wider mb-2">Minhas Metas</h2>
           <p className="text-slate-500 dark:text-slate-400">Visualize seus sonhos e acompanhe seu progresso financeiro.</p>

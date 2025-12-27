@@ -5,11 +5,12 @@ import { supabase } from '../services/supabase';
 interface GoalContributionsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    goal: Goal | null;
-    onUpdate: () => void; // Call to refresh goals in App.tsx
+    onUpdate: () => void;
+    showConfirm: (title: string, message: string, onConfirm: () => void, variant?: 'danger' | 'warning' | 'info' | 'success') => void;
+    showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-const GoalContributionsModal: React.FC<GoalContributionsModalProps> = ({ isOpen, onClose, goal, onUpdate }) => {
+const GoalContributionsModal: React.FC<GoalContributionsModalProps> = ({ isOpen, onClose, goal, onUpdate, showConfirm, showToast }) => {
     const [contributions, setContributions] = useState<GoalContribution[]>([]);
     const [loading, setLoading] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,29 +44,34 @@ const GoalContributionsModal: React.FC<GoalContributionsModalProps> = ({ isOpen,
     };
 
     const handleDelete = async (contribution: GoalContribution) => {
-        if (!confirm('Deseja excluir este aporte? O valor será subtraído da meta.')) return;
+        showConfirm(
+            'Excluir Aporte',
+            'Deseja excluir este aporte? O valor será subtraído da meta.',
+            async () => {
+                const { error } = await supabase
+                    .from('goal_contributions')
+                    .delete()
+                    .eq('id', contribution.id);
 
-        const { error } = await supabase
-            .from('goal_contributions')
-            .delete()
-            .eq('id', contribution.id);
+                if (error) {
+                    showToast('Erro ao excluir aporte', 'error');
+                    return;
+                }
 
-        if (error) {
-            alert('Erro ao excluir: ' + error.message);
-            return;
-        }
+                // Update goal total
+                if (goal) {
+                    const newTotal = Math.max(0, goal.currentValue - contribution.amount);
+                    await supabase
+                        .from('goals')
+                        .update({ current_value: newTotal })
+                        .eq('id', goal.id);
+                }
 
-        // Update goal total
-        if (goal) {
-            const newTotal = Math.max(0, goal.currentValue - contribution.amount);
-            await supabase
-                .from('goals')
-                .update({ current_value: newTotal })
-                .eq('id', goal.id);
-        }
-
-        fetchContributions();
-        onUpdate();
+                fetchContributions();
+                onUpdate();
+                showToast('Aporte excluído com sucesso!');
+            }
+        );
     };
 
     const startEdit = (c: GoalContribution) => {
@@ -87,9 +93,11 @@ const GoalContributionsModal: React.FC<GoalContributionsModalProps> = ({ isOpen,
             .eq('id', c.id);
 
         if (error) {
-            alert('Erro ao atualizar: ' + error.message);
+            showToast('Erro ao atualizar aporte', 'error');
             return;
         }
+
+        showToast('Aporte atualizado com sucesso!');
 
         // Update goal total
         if (goal) {
